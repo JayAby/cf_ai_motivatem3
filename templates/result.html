@@ -4,31 +4,69 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-wdith, initial-scale=1.0">
         <title>MotivateME</title>
+
+        <!-- Bootstrap CSS -->
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        
+        <!-- Custom Styles -->
         <style>
             body {
-                background: 52575c;
+                background: radial-gradient(circle at center, #1c1c1c, #2c2c2c, #0047ab, #0072ff);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
             }
-            .result-card{
-                white-space: pre-wrap;
-                font-size: 1.1rem;
+
+            .card-custom{
+                background-color: #265659d2;
+                border-radius: 15px;
+                padding: 2rem;
+                max-width: 600px;
+                width: 100%;
+                box-shadow: 0 8px 20px rgba(110, 181, 238, 0.15);
+                text-align: center;
             }
-            .result-card-container{
-                transition: transform 0.2s;
+
+            h2{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-weight: 700;
+                margin-bottom: 1.5rem;
             }
-            .result-card-container:hover{
-                transform: scale(1.02);
+
+            .motivation-text{
+                font-size: 1.2rem;
+                line-height: 1.8;
+                font-family: Georgia, 'Times New Roman', Times, serif;
+                color: #333;
+                white-space: pre-wrap; /* Keeps line breaks from python */
+            }
+
+            .btn-back{
+                margin-top: 2rem;
+                background-color: #2575fc;
+                border-color: #2575fc;
+            }
+
+            .btn-back:hover{
+                background-color: #2575fc;
+                border-color: #2575fc;
             }
         </style>
     </head>
-    <body class="d-flex align-items-center justify-content-center min-vh-100">
+    <body>
 
-        <div class="container cold-md-8 col-lg-6">
-            <div class="card p-4 shadow result-card-container bg-white rounded mb-4">
-                <h2 class="mb-3 text-center">Your Motivation</h2>
-                <p class="fs-5">{{ message|safe }}</p>
-                <a href="/" class="btn btn-secondary w-100 mt-3">Get Another</a>
-            </div>
+        <div class="card card-custom">
+                <h2>Your Motivation</h2>
+
+                <!-- Motivation Text -->
+                <p class="motivation-text">
+                    {{ motivation }}
+                </p>
+
+                <!-- Back Button -->
+                <a href="/" class="btn btn-back w-100 mt-3">Get Another</a>
         </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
