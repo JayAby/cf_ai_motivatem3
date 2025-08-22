@@ -2,6 +2,7 @@ from flask import Flask, render_template, request
 from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
 import os
+import markdown
 
 load_dotenv()
 
@@ -32,7 +33,8 @@ def generate():
         )
         
         # Extract the AI message
-        message = response['choices'][0]['message']['content'].strip()
+        raw_message = response['choices'][0]['message']['content'].strip()
+        message = markdown.markdown(raw_message)
 
     except Exception as e:
         import traceback
