@@ -47,7 +47,7 @@ def generate():
         # Fallback: use text_generation if chat_completion is not supported
         response = client.text_generation(
             model="openai/gpt-oss-20b",
-            inputs = prompt,
+            prompt=prompt,
             max_new_tokens=80
         )
         raw_message = response.generated_text.strip()
