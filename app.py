@@ -4,12 +4,17 @@ from dotenv import load_dotenv
 import os
 import markdown
 
-load_dotenv()
+# Load .env and override any system/global variables
+load_dotenv(override=True)
 
 app = Flask(__name__)
 
-# Setup Hugging Face client
+# Get HF Token
 HF_TOKEN = os.getenv("HF_TOKEN")
+if not HF_TOKEN:
+    raise ValueError("HF_TOKEN is missing. Please add it to your .env file.")
+
+# Setup Hugging Face client
 client = InferenceClient(token=HF_TOKEN)
 
 @app.route("/")
@@ -18,11 +23,14 @@ def home():
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    feeling = request.form.get("feeling")
-    goal = request.form.get("goal")
+    feeling = request.form.get("feeling", "").strip()
+    goal = request.form.get("goal", "").strip()
+
+    if not goal and not feeling:
+        return render_template("result.html", message="Please provide a goal or a feeling.")
 
     # Prompt for the AI
-    prompt = f"Give a motivating message to help achieve goal: {goal} considering that they feel: {feeling}."
+    prompt = f"Give a motivating message to help achieve goal: {goal} while considering they feel: {feeling}."
 
     # Generate from Hugging Face model
     try:
@@ -34,12 +42,19 @@ def generate():
         
         # Extract the AI message
         raw_message = response['choices'][0]['message']['content'].strip()
-        message = markdown.markdown(raw_message)
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        message = f"Error generating message: {e}"
+    except Exception:
+        # Fallback: use text_generation if chat_completion is not supported
+        response = client.text_generation(
+            model="openai/gpt-oss-20b",
+            inputs = prompt,
+            max_new_tokens=80
+        )
+        raw_message = response.generated_text.strip()
+
+    # Render with Markdown
+    message = markdown.markdown(raw_message)
+
     
     return render_template("result.html", message=message)
 
