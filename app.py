@@ -53,7 +53,7 @@ def generate():
         raw_message = response.generated_text.strip()
 
     # Render with Markdown
-    message = markdown.markdown(raw_message)
+    message = markdown.markdown(raw_message, extensions=["tables", "fenced_code"])
 
     
     return render_template("result.html", message=message)
