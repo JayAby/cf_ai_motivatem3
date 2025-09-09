@@ -4,66 +4,95 @@
 
 {% block content %}
 <!-- Result Card -->
-<div class="card card-custom" id="motivation-card">
-    <h2>Your Motivation</h2>
-    <!-- Motivation Text -->
-    <p class="motivation-text">
-        {{ message|safe }}
-    </p>
+<div class="card-custom">
+    <div id="motivation-content" data-mood="{{ mood }}">
+        <h2>Your Motivation</h2>
+        <p class="motivation-text">
+            {{ message|safe }}
+        </p>
+        <p> Mood Detected: {{ mood }}</p>
+    </div>
 
     <!-- Back Button Link -->
     <a href="/" class="btn btn-back w-100 mt-3">Get Another</a>
 
-
     <!-- Share/ Download Section -->
     <div class="d-flex justify-content-center align-items-center mt-3 gap-4" id="share-download">
-        <!-- Download as Image -->
         <button id="download-btn" class="btn p-0 text-light" title="Download as Image">
             <i class="bi bi-download" style="font-size: 1.8rem;"></i>
         </button>
-
-        <!-- Whatsapp Share -->
         <a id="whatsapp-share" target="_blank" class="text-light" title="Share on Whatsapp">
             <i class="bi bi-whatsapp" style="font-size: 1.6rem;"></i>
         </a>
-
-        <!-- Twitter Share -->
         <a id="twitter-share" target="_blank" class="text-light" title="Share on Twitter">
             <i class="bi bi-twitter" style="font-size: 1.6rem;"></i>
         </a>
-
-        <!-- Facebook Share -->
         <a id="facebook-share" target="_blank" class="text-light" title="Share on Facebook">
             <i class="bi bi-facebook" style="font-size: 1.6rem;"></i>
         </a>
     </div>
 </div>
 
+<!-- Apply themes to card -->
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        const cardEl = document.getElementById("motivation-content")
+        if (!cardEl) return;
+
+        const mood = cardEl.dataset.mood?.toLowerCase();
+        console.log("Detected mood in JS:", mood);
+
+        const moodMap = {
+            "anger": "theme-anger",
+            "disgust": "theme-disgust",
+            "fear": "theme-fear",
+            "joy": "theme-joy",
+            "neutral": "theme-neutral",
+            "sadness": "theme-sadness",
+            "surprise": "theme-surprise"
+        };
+
+        // Remove any previous themes
+        cardEl.classList.remove(...Object.values(moodMap));
+
+        // Apply the theme for the detected mood
+        if (moodMap[mood]){
+            cardEl.classList.add(moodMap[mood]);
+        } else{
+            console.warn("Unknown mood: ", mood);
+            cardEl.classList.add("theme-neutral");
+        }
+    }); 
+</script>
+
+
+<!-- Download & Share -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-    const card = document.querySelector('.card-custom');
-    const messageText = card.querySelector('.motivation-text').innerText;
+    const motivationContent = document.getElementById('motivation-content');
+    const messageText = motivationContent.querySelector('.motivation-text').innerText;
+
+    const appLink = "https://motivatem3.onrender.com/";
+    const shareText = `Today's Motivation \n\n${messageText}\n\nGet your own here: ${appLink}`;
 
     // Social links
-    document.getElementById('whatsapp-share').href = `https://wa.me/?text=${encodeURIComponent(messageText)}`;
-    document.getElementById('twitter-share').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(messageText)}`;
-    document.getElementById('facebook-share').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(messageText)}`;
+    document.getElementById('whatsapp-share').href = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+    document.getElementById('twitter-share').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+    document.getElementById('facebook-share').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(appLink)}&quote=${encodeURIComponent(messageText)}`;
 
-    // Download card as image
+    // Download only the motivation content
     document.getElementById('download-btn').addEventListener('click', () => {
-        const shareSection = document.getElementById('share-download');
-        shareSection.style.display = 'none'; // hide buttons temporarily
-
-        html2canvas(card).then(canvas =>{
+        html2canvas(motivationContent, {
+            backgroundColor: null,
+            useCORS: true,
+            scale: 2
+        }).then(canvas => {
             const link = document.createElement('a');
             link.download = 'motivation.png';
-            link.href = canvas.toDataURL();
+            link.href = canvas.toDataURL('image/png');
             link.click();
-        }).finally(() => {
-            shareSection.style.display = 'flex';
         });
     });
 </script>
-
 
 {% endblock %}

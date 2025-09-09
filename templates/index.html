@@ -4,7 +4,7 @@
 
 {% block content %}
 <!-- Form Card -->
-<div class="card card-custom">
+<div class="card-custom main-card">
     <h2 class="mb-4 text-center">Today's Motivation</h2>
     <form id="motivationForm" action="/generate" method="POST">
         <div class="mb-3">
@@ -31,7 +31,7 @@
 
 <script>
     const form = document.getElementById("motivationForm");
-    const spiner = document.getElementById("spinner");
+    const spinner = document.getElementById("spinner");
 
     form.addEventListener("submit", function(){
         spinner.style.display = "block";
