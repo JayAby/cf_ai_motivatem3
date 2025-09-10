@@ -1,9 +1,8 @@
 from flask import Flask, render_template, request
 from huggingface_hub import InferenceClient
-from transformers import pipeline
-from sentence_transformers import SentenceTransformer, util 
 from dotenv import load_dotenv
 from requests.exceptions import ContentDecodingError
+import numpy as np
 import os
 import markdown
 
@@ -20,17 +19,17 @@ if not HF_TOKEN:
 # Setup Hugging Face client
 client = InferenceClient(token=HF_TOKEN)
 
-# Emotion Classifier
-emotion_classifier = pipeline(
-    "text-classification",
-    model="j-hartmann/emotion-english-distilroberta-base",
-    top_k=None
-)
-
 def detect_emotion(user_text):
-    results = emotion_classifier(user_text)[0] # Returns list of emotions
-    top_emotion = max(results, key=lambda x: x['score'])
-    return top_emotion['label'], top_emotion['score']
+    try:
+        response = client.text_classification(
+            model="j-hartmann/emotion-english-distilroberta-base",
+            text=user_text
+        )
+        top_emotion = max(response, key=lambda x: x['score'])
+        return top_emotion['label'], top_emotion['score']
+    except Exception as e:
+        print("Emotion detection failed:", e)
+        return "neutral", 1.0
 
 def map_emotion_to_mood(emotion):
     mapping = {
@@ -46,16 +45,32 @@ def map_emotion_to_mood(emotion):
     return mapping.get(emotion.lower(), "neutral")
 
 # Detect harmful intent
-semantic_model = SentenceTransformer('all-MiniLM-L6-v2')
-negative_intents = [
+def get_embedding(text):
+    try:
+        response = client.feature_extraction(
+            model = "sentence-transformers/all-MiniLM-L6-v2",
+            text = text
+        )
+        return response[0] # returns a vector
+    except Exception as e:
+        print("Embedding failed:", e)
+        return []
+
+# Pre-compute embeddings for negative intents
+neg_embs = [get_embedding(intent) for intent in [
     "steal", "rob", "kill", "hurt someone", "suicide", "crime", "mafia", "illegal",
     "attack", "harm", "fraud", "worthless", "give up", "sexual desire"
-]
-neg_embs = semantic_model.encode(negative_intents, convert_to_tensor=True)
+]]
+
+def cosine_similarity(vec1, vec2):
+    v1, v2 = np.array(vec1), np.array(vec2)
+    return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
 
 def is_harmful(user_text):
-    user_emb = semantic_model.encode(user_text, convert_to_tensor=True)
-    scores = util.cos_sim(user_emb, neg_embs)[0] # Compare user text to negative intents
+    user_emb = get_embedding(user_text)
+    if not user_emb:
+        return False
+    scores = [cosine_similarity(user_emb, neg) for neg in neg_embs if neg]
     return any(score > 0.65 for score in scores)
 
 # Create Motivational Prompt
