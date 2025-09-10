@@ -76,7 +76,7 @@ def reframe_input(feeling, goal):
         try:
             # Generate safe text from AI
             response = client.chat_completion(
-                model="openai/gpt-oss-120b",
+                model="openai/gpt-oss-20b",
                 messages=[{"role": "user", "content": safe_reframed_prompt}]
             )
             safe_text = response['choices'][0]['message']['content'].strip()
@@ -122,7 +122,7 @@ def generate():
     # Generate from Hugging Face model
     try:
         response = client.chat_completion(
-            model="openai/gpt-oss-120b",
+            model="openai/gpt-oss-20b",
             messages=[{"role": "user", "content": prompt}]
 
         )  
@@ -134,7 +134,7 @@ def generate():
         try:
             # Fallback: use text_generation if chat_completion is not supported
             response = client.text_generation(
-                model="openai/gpt-oss-120b",
+                model="openai/gpt-oss-20b",
                 prompt=prompt,
                 max_new_tokens=100
             )
