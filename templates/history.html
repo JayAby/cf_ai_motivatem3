@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<div id="motivation-content" class="theme-neutral">
+  <h2>{{ name }}'s Motivation History</h2>
+
+  {% if history %}
+    <div class="history-container">
+      {% for item in history %}
+        <div class="history-entry">
+          <h3>Entry {{ loop.index }}</h3>
+          <small>{{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+          <div class="history-content">
+            {{ item.content | safe }}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No saved motivations yet. Generate one to get started!</p>
+  {% endif %}
+</div>
+{% endblock %}

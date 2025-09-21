@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block body_class %}login-page{% endblock %}
+{% block layout %}
+
+<div class="auth-card">
+    <div class="auth-title">MotivateM3 <br>
+        <small style="font-weight:400;">Login to Continue</small>
+    </div>
+
+    <div class="auth-form">
+        <h2>Login</h2>
+        <form method="POST">
+            <input type="email" name="email" placeholder="Email" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit">Login</button>
+        </form>
+        <div class="auth-links">
+            <a href="#">Forgot Password?</a>
+            <a href="{{ url_for('auth.signup') }}">Create New Account</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
