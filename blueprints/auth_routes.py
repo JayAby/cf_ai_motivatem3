@@ -5,7 +5,6 @@ from extensions import db, mail
 from models import User
 import hashlib
 from datetime import datetime, timedelta
-from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer
 import secrets, string, logging
 import os
