@@ -34,7 +34,6 @@ def create_app():
     app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
 
     # Initialise extensions
-    mail.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
 
