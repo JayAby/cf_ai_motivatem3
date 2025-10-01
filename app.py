@@ -1,21 +1,21 @@
 from flask import Flask, redirect, url_for, abort, render_template
 from dotenv import load_dotenv
 from flask_login import current_user, login_required
-from extensions import db, login_manager, mail, s
+from extensions import db, login_manager, mail
 from models import User
 from blueprints.motivation import motivation_bp
 from blueprints.auth_routes import auth_bp
 from itsdangerous import URLSafeTimedSerializer
 import os
 
-# Load .env and override any system/global variables
+# Load .env
 load_dotenv(override=True)
 
-# Create app
+# Create app factory
 def create_app():
     app = Flask(__name__)
 
-    # Get Secret Key 
+    # Secret Key
     app.secret_key = os.getenv("SECRET_KEY", "fallbacksecret")
 
     # Database setup
@@ -31,22 +31,19 @@ def create_app():
     app.config['MAIL_PASSWORD'] = os.getenv('SENDGRID_API_KEY')
     app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
 
-    # Debug
-    #print("MAIL_USERNAME =", app.config['MAIL_USERNAME'])
-    #print("MAIL_PASSWORD =", app.config['MAIL_PASSWORD'])
-
     # Initialise extensions
     mail.init_app(app)
     login_manager.init_app(app)
-    login_manager.login_view = "auth.login" # Redirect if not logged in
+    login_manager.login_view = "auth.login"
 
     # Token Serializer
     s = URLSafeTimedSerializer(app.secret_key)
 
-    # Register blueprint
+    # Register blueprints
     app.register_blueprint(motivation_bp)
     app.register_blueprint(auth_bp)
 
+    # Test email route
     @app.route("/test-email")
     def test_email():
         from flask_mail import Message
@@ -58,29 +55,30 @@ def create_app():
         except Exception as e:
             return f"Error: {str(e)}"
 
-
-    # Default route -> Login
+    # Default route
     @app.route("/")
     def index():
         return redirect(url_for("auth.login"))
 
+    # Admin dashboard
     @app.route("/admin")
     @login_required
     def admin_dashboard():
         if not current_user.is_admin:
             abort(403)
             return redirect(url_for("motivation.home"))
-        
+
         users = User.query.all()
         return render_template("admin.html", users=users)
-    
+
     return app
 
+# User loader
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-
+# Only used if running locally
 if __name__ == "__main__":
     app = create_app()
     with app.app_context():
