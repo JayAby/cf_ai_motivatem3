@@ -7,6 +7,8 @@ from blueprints.motivation import motivation_bp
 from blueprints.auth_routes import auth_bp
 from itsdangerous import URLSafeTimedSerializer
 import os
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 # Load .env
 load_dotenv(override=True)
@@ -46,14 +48,18 @@ def create_app():
     # Test email route
     @app.route("/test-email")
     def test_email():
-        from flask_mail import Message
-        msg = Message("Test from MotivateM3", recipients=["joelabiola04@gmail.com"])
-        msg.body = "This is a test email sent via SendGrid!"
+        message = Mail(
+            from_email=os.getenv("MAIL_DEFAULT_SENDER"),
+            to_emails="joelabiola04@gmail.com",  # change this if needed
+            subject="Test from MotivateM3 (via SendGrid API)",
+            html_content="<p>This is a test email sent via <b>SendGrid API</b>!</p>"
+        )
         try:
-            mail.send(msg)
-            return "Email sent successfully!"
+            sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
+            response = sg.send(message)
+            return f"Email sent! Status: {response.status_code}"
         except Exception as e:
-            return f"Error: {str(e)}"
+            return f"Error sending email: {str(e)}"
 
     # Default route
     @app.route("/")

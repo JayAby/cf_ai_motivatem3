@@ -3,18 +3,50 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required
 from extensions import db, mail
 from models import User
-import random, hashlib
+import hashlib
 from datetime import datetime, timedelta
 from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer
 import secrets, string, logging
- 
+import os
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail 
+
 auth_bp = Blueprint("auth",__name__, url_prefix="/auth")
 logger = logging.getLogger(__name__)
 
 # Create and Store Code
 def hash_code(code: str) -> str:
     return hashlib.sha256(code.encode()).hexdigest()
+
+def send_email(to_email: str, subject: str, html_content: str) -> bool:
+    """Send email via SendGrid API."""
+    message = Mail(
+        from_email=os.getenv("MAIL_DEFAULT_SENDER"),
+        to_emails=to_email,
+        subject=subject,
+        html_content=html_content
+    )
+    try:
+        sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
+        response = sg.send(message)
+        logger.info(f"Email sent to {to_email}, status {response.status_code}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email}: {e}")
+        return False
+    
+def generate_verification_code(length=6) -> str:
+    return "".join(secrets.choice(string.digits) for _ in range(length))
+
+def generate_token(email: str):
+    s = URLSafeTimedSerializer(current_app.secret_key)
+    return s.dumps(email, salt="email-confirm")
+
+def decode_token(token: str, max_age=3600):
+    s = URLSafeTimedSerializer(current_app.secret_key)
+    return s.loads(token, salt="email-confirm", max_age=max_age)
+
 
 # Signup
 @auth_bp.route("/signup", methods=["GET", "POST"])
@@ -51,9 +83,8 @@ def signup():
 
         try:
             # Link token (time-limited)
-            token = URLSafeTimedSerializer(current_app.secret_key).dumps(email, salt="email-confirm")
+            code = generate_verification_code()
             # Numeric code
-            code = "".join(secrets.choice(string.digits) for _ in range(6))
             code_hash = hash_code(code)
             expiry = datetime.utcnow() + timedelta(hours=1)
 
@@ -67,30 +98,35 @@ def signup():
             session["pending_user_email"] = new_user.email
 
             # Build verification link
+            token = generate_token(new_user.email) 
             link = url_for("auth.verify_email", token=token, _external=True)
             # Send email with both link and code
-            msg = Message("Confirm your MotivateM3 account", recipients=[email])
-            msg.body = (
-                f"Hi {first_name}, \n\n"
-                f"Thanks for registering. You can verify your account in two ways: \n\n"
-                f"Click this link (expires in 1 hour): {link}\n\n"
-                f"or copy this verification code into the app: {code}\n\n"
-                f"If you didn't sign up, ignore this email.\n\n"
+            body = (
+                f"Hi {first_name},<br><br>"
+                f"Thanks for registering. You can verify your account in two ways:<br><br>"
+                f"<a href='{link}'>Click this link</a> (expires in 1 hour)<br>"
+                f"or enter this verification code into the app: <b>{code}</b><br><br>"
+                f"If you didn't sign up, ignore this email.<br><br>"
                 "-MotivateM3 Team"
             )
-            # Send email
-            mail.send(msg)
 
+            if not send_email(email, "Confirm your MotivateM3 account", body):
+                flash(f"Signup failed: could not send verification email.", "danger")
+                db.session.delete(new_user)
+                db.session.commit()
+                return render_template("signup.html")
+            
             flash("A verification email has been sent. Check your inbox or spam. \n" \
             "You can either click the link or enter the code here.", "info")
             return redirect(url_for("auth.verify_code"))
+        
         except Exception as e:
             logger.error(f"Signup email send failed for {email}: {e}")
             db.session.delete(new_user)
             db.session.commit()
-            flash(f"Signup failed: could not send verification email. {str(e)}", "danger")
+            flash("Signup failed. Try again later.", "danger")
             return render_template("signup.html")
-                
+          
     return render_template("signup.html")
 
 
@@ -98,7 +134,7 @@ def signup():
 @auth_bp.route("/verify/<token>")
 def verify_email(token):
     try:
-        email = URLSafeTimedSerializer(current_app.secret_key).loads(token, salt="email-confirm", max_age=3600)
+        email = decode_token(token)
     except Exception:
         flash("Confirmation link is either invalid or expired.", "danger")
         return redirect(url_for("auth.signup"))
@@ -177,7 +213,7 @@ def resend_verification():
 
     if not pending_email:
         flash("No pending verification found. Please log in or signup first.", "danger")
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("auth.signup"))
 
     user = User.query.filter_by(email=pending_email).first()
     if not user:
@@ -189,7 +225,7 @@ def resend_verification():
         return redirect(url_for("auth.login"))
     
     # Generate new code + hash
-    code = "".join(secrets.choice(string.digits) for _ in range(6))
+    code = generate_verification_code()
     code_hash = hash_code(code)
     expiry = datetime.utcnow() + timedelta(hours=1)
 
@@ -199,21 +235,19 @@ def resend_verification():
     db.session.commit()
 
     # Send email + new link
-    token = URLSafeTimedSerializer(current_app.secret_key).dumps(user.email, salt="email-confirm")
+    token = generate_token(user.email)
     link = url_for("auth.verify_email", token=token, _external=True)
-    msg = Message("Resend Verification - MotivateM3", recipients=[user.email])
-    msg.body = (
-        f"Hi {user.first_name},\n\n"
-        f"Here is your new verification link (valid for 1 hour): {link}\n\n"
-        f"Or enter this code in the app: {code}\n\n"
+    body = (
+        f"Hi {user.first_name},<br><br>"
+        f"Here is your new verification link (valid for 1 hour): <a href='{link}'>Verify Email</a><br>"
+        f"Or enter this code in the app: <b>{code}</b><br><br>"
         f"- MotivateM3 Team"
     )
-    mail.send(msg)
-    
+    send_email(user.email, "Resend Verification - MotivateM3", body)
+
     # Save session to pre-fill email in verify-code page
     session["pending_user_email"] = user.email
     session["pending_user_id"] = user.id
-
     flash("A new verification email has been sent.", "success")
     return redirect(url_for("auth.login", show_code_modal="true"))
 
