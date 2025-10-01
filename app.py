@@ -1,7 +1,7 @@
 from flask import Flask, redirect, url_for, abort, render_template
 from dotenv import load_dotenv
 from flask_login import current_user, login_required
-from extensions import db, login_manager, mail
+from extensions import db, login_manager
 from models import User
 from blueprints.motivation import motivation_bp
 from blueprints.auth_routes import auth_bp
