@@ -343,13 +343,67 @@
         .auth-links a:hover{
             text-decoration: underline;
         }
+
+        .verify-page{
+            background: linear-gradient(135deg, #11cb7e, #08575f);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .verify-card {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .verify-card h2 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .verify-card p {
+            font-size: 0.95rem;
+            color: #555;
+            margin-bottom: 1.5rem;
+        }
+
+        .verify-card input {
+            width: 100%;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+        }
+
+        .verify-card button {
+            width: 100%;
+            padding: 0.8rem;
+            background-color: #6a11cb;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .verify-card button:hover {
+            background-color: #2575fc;
+        }
     </style>
 </head>
 <body class="{% block body_class %}{% endblock %}">
     {% block layout %}
     {% block navbar %}
     <!-- Navbar -->
-     {% if not (request.endpoint == 'auth.login' or request.endpoint == 'auth.signup') %}
+    {% if not (request.endpoint == 'auth.login' or request.endpoint == 'auth.signup' or request.endpoint == 'auth.verify_email' or request.endpoint == 'auth.verify_code') %}
     <nav class="navbar navbar-expand-lg navbar-custom">
         <div class="container-fluid">
             <a class="navbar-brand fw-bold" href="/">MotivateME</a>
@@ -359,17 +413,42 @@
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('motivation.history') }}">History</a></li>
                     <li class="nav-item"><a class="nav-link" href="#">About</a></li>
                     <li class="nav-item"><a class="nav-link" href="###">Support</a></li>
+                    <!-- Dropdown for edit profile and logout -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle text-light" href="#" id="userDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            Hi, {{ current_user.first_name }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="####">Edit profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">logout</a></li>
+                        </ul>
+                    </li>
+                    {% if current_user.is_admin %}
+                        <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('admin_dashboard') }}">Admin</a></li>
+                    {% endif %}
                 </ul>
             </div>
-            <li class="nav-item"><span class="nav-link text-light">Hi, {{ current_user.first_name }}</span></li>
-            {% if current_user.is_admin %}
-                <li class="nav-item"><a class="nav-link text-light" href="{{ url_for('admin_dashboard') }}">Admin</a></li>
-            {% endif %}
+
         </div>
     </nav>
     {% endif %}
     {% endblock %}
 
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mt-3">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
     <!-- Main Content -->
     <div class="container-main">
         {% block content %}{% endblock %}

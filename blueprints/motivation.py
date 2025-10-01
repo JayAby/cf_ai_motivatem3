@@ -1,8 +1,9 @@
-from flask import Blueprint, render_template, request, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from huggingface_hub import InferenceClient
 from requests.exceptions import ContentDecodingError
 from flask_login import login_required, current_user
-from models import db, Motivation
+from extensions import db
+from models import Motivation
 import numpy as np
 import os
 import markdown
@@ -70,7 +71,7 @@ def is_harmful(user_text):
     global neg_embs
     if neg_embs is None:
             neg_embs = [get_embedding(intent) for intent in harmful_phrases]
-            
+
     user_emb = get_embedding(user_text)
     if not user_emb:
         return False
@@ -179,4 +180,16 @@ def generate():
 @login_required
 def history():
     user_history = Motivation.query.filter_by(user_id=current_user.id).order_by(Motivation.created_at.desc()).all()
-    return render_template("history.html", history=user_history, name=current_user.first_name)
+
+    # Convert stored text to HTML with Markdown
+    formatted_history = []
+    for record in user_history:
+        formatted_history.append({
+            "content": markdown.markdown(
+                record.content,
+                extensions=["fenced_code", "tables"]
+            ),
+            "created_at": record.created_at
+        })
+        
+    return render_template("history.html", history=formatted_history, name=current_user.first_name)

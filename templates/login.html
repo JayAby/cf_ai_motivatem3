@@ -1,24 +1,103 @@
 {% extends "base.html" %}
 {% block title %}Login{% endblock %}
 {% block body_class %}login-page{% endblock %}
-{% block layout %}
-
+{% block content %}
 <div class="auth-card">
-    <div class="auth-title">MotivateM3 <br>
-        <small style="font-weight:400;">Login to Continue</small>
-    </div>
+  <div class="auth-title">MotivateM3 <br>
+    <small style="font-weight:400;">Login to Continue</small>
+  </div>
 
-    <div class="auth-form">
-        <h2>Login</h2>
-        <form method="POST">
-            <input type="email" name="email" placeholder="Email" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Login</button>
-        </form>
-        <div class="auth-links">
-            <a href="#">Forgot Password?</a>
-            <a href="{{ url_for('auth.signup') }}">Create New Account</a>
-        </div>
+  <div class="auth-form">
+    <h2>Login</h2>
+
+    <!-- LOGIN FORM (no nesting) -->
+    <form id="login-form" method="POST" action="{{ url_for('auth.login') }}">
+      <input type="email" name="email" placeholder="Email" required>
+      <input type="password" name="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+    </form>
+
+    {% set pending = session.get('pending_user_email') %}
+    {% if pending %}
+      <!-- OPEN CODE MODAL (NOT a submit button) -->
+      <button type="button"
+              class="btn btn-outline-light w-100 mt-2"
+              data-bs-toggle="modal"
+              data-bs-target="#codeModal"
+              onclick="document.getElementById('modalEmail').value='{{ pending }}'">
+        Enter verification code
+      </button>
+
+      <!-- RESEND: separate POST form using pending email -->
+      <form method="POST" action="{{ url_for('auth.resend_verification') }}" class="mt-2">
+        <input type="hidden" name="email" value="{{ pending }}">
+        <button type="submit" class="btn btn-secondary w-100">Resend Verification Email</button>
+      </form>
+    {% endif %}
+
+    <div class="auth-links">
+      <a href="#">Forgot Password?</a>
+      <a href="{{ url_for('auth.signup') }}">Create New Account</a>
     </div>
+  </div>
 </div>
+
+<!-- Verify Code Modal -->
+<div class="modal fade" id="codeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content p-4">
+      <h5 class="mb-3">Enter Verification Code</h5>
+      <form method="POST" action="{{ url_for('auth.verify_code') }}">
+        <!-- The backend uses session, but we still pass it for convenience -->
+        <input type="hidden" name="email" id="modalEmail" value="{{ session.get('pending_user_email', '') }}">
+        <input type="text" class="form-control mb-3" name="code" placeholder="6-digit code" required maxlength="6">
+        <button type="submit" class="btn btn-primary w-100">Verify</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <h5 class="text-success">Verification Successful!</h5>
+      <p>You can now log in.</p>
+      <button type="button" class="btn btn-success w-100" data-bs-dismiss="modal">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fail Modal -->
+<div class="modal fade" id="failModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <h5 class="text-danger">Verification Failed</h5>
+      <p>Invalid or expired code/link.</p>
+      <button type="button" class="btn btn-danger w-100" data-bs-dismiss="modal">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const params = new URLSearchParams(window.location.search);
+
+  // Auto-open the code modal when redirected after unverified login or resend
+  if (params.get("show_code_modal") === "true") {
+    const emailFromSession = "{{ session.get('pending_user_email', '') }}";
+    document.getElementById("modalEmail").value = emailFromSession;
+    new bootstrap.Modal(document.getElementById("codeModal")).show();
+  }
+
+  if (params.get("verified") === "success") {
+    new bootstrap.Modal(document.getElementById("successModal")).show();
+  }
+
+  if (params.get("verified") === "failed") {
+    new bootstrap.Modal(document.getElementById("failModal")).show();
+  }
+});
+</script>
+
 {% endblock %}
