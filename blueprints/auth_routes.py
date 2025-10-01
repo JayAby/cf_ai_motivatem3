@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required
-from extensions import db, mail
+from extensions import db
 from models import User
 import hashlib
 from datetime import datetime, timedelta
