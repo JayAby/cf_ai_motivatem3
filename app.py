@@ -21,7 +21,11 @@ def create_app():
     app.secret_key = os.getenv("SECRET_KEY", "fallbacksecret")
 
     # Database setup
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///motivatem3.db"
+    uri = os.getenv("SUPABASE_DATABASE_URL")
+    if uri and uri.startswith("postgres://"):
+        uri = uri.replace("postgres://", "postgresql://", 1)
+
+    app.config["SQLALCHEMY_DATABASE_URI"] = uri or "sqlite:///motivatem3.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.init_app(app)
 
@@ -39,10 +43,6 @@ def create_app():
 
     # Token Serializer
     s = URLSafeTimedSerializer(app.secret_key)
-
-    # Register blueprints
-    app.register_blueprint(motivation_bp)
-    app.register_blueprint(auth_bp)
 
     # Test email route
     @app.route("/test-email")
@@ -63,7 +63,12 @@ def create_app():
     # Default route
     @app.route("/")
     def index():
-        return redirect(url_for("auth.login"))
+        return render_template("landing_page.html")
+    
+    # Register blueprints
+    app.register_blueprint(motivation_bp)
+    app.register_blueprint(auth_bp)
+
 
     # Admin dashboard
     @app.route("/admin")

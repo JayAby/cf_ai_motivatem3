@@ -146,7 +146,7 @@ def verify_email(token):
     
     if user.is_verified:
         flash("Your account is already verified. Please log in.", "info")
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("motivation.home"))
     
     # Mark new user as verified
     user.is_verified = True
@@ -155,7 +155,7 @@ def verify_email(token):
     db.session.commit()
 
     flash("Your email has been verified! You can now log in.", "success")
-    return redirect(url_for("auth.login", verified="success"))
+    return redirect(url_for("motivation.home", verified="success"))
 
 # Verify Code
 @auth_bp.route("/verify-code", methods=["GET","POST"])

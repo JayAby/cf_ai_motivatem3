@@ -119,7 +119,7 @@ def reframe_input(feeling, goal):
     return reframed_prompt
 
 # Routes
-@motivation_bp.route("/")
+@motivation_bp.route("/home")
 @login_required
 def home():
     return render_template("index.html")
