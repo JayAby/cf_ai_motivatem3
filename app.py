@@ -21,13 +21,38 @@ def create_app():
     app.secret_key = os.getenv("SECRET_KEY", "fallbacksecret")
 
     # Database setup
-    uri = os.getenv("SUPABASE_DATABASE_URL")
-    if uri and uri.startswith("postgres://"):
-        uri = uri.replace("postgres://", "postgresql://", 1)
+    uri = os.getenv("SUPABASE_DATABASE_URL") or os.getenv("DATABASE_URL")
+
+    if uri.startswith("postgres://"):
+        uri = uri.replace("postgres://", "postgresql+psycopg://", 1)
+    elif uri.startswith("postresql://"):
+        uri = uri.replace("postgres://", "postgresql+psycopg://", 1)
+
+    # Enforce SSL for Supabase if missing
+    if uri and "sslmode=" not in uri:
+        uri += ("&" if "?" in uri else "?") + "sslmode=require"
+
+    # TEMP: confirm you’re using the pooler host in logs
+    if uri and "@" in uri:
+        print("USING DB HOST:", uri.split("@")[1].split("/")[0])
 
     app.config["SQLALCHEMY_DATABASE_URI"] = uri or "sqlite:///motivatem3.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     db.init_app(app)
+
+    from sqlalchemy import text
+
+    @app.route("/debug/db")
+    def debug_db():
+        try:
+            who = db.session.execute(text("select current_user")).scalar()
+            cnt = db.session.execute(text("select count(*) from users")).scalar()
+            host = app.config["SQLALCHEMY_DATABASE_URI"].split("@")[1].split("/")[0]
+            return {"user": who, "users_count": int(cnt), "host": host}
+        except Exception as e:
+            return {"error": str(e)}, 500
+
 
     # Mail Config
     app.config['MAIL_SERVER'] = 'smtp.sendgrid.net'
