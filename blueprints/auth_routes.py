@@ -2,14 +2,15 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required
 from extensions import db
-from models import User
+from models import PasswordReset, User
 import hashlib
 from datetime import datetime, timedelta
 from itsdangerous import URLSafeTimedSerializer
 import secrets, string, logging
 import os
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail 
+from sendgrid.helpers.mail import Mail
+from utils import generate_code, hash_code, codes_match
 
 auth_bp = Blueprint("auth",__name__, url_prefix="/auth")
 logger = logging.getLogger(__name__)
@@ -298,3 +299,99 @@ def logout():
 @login_required
 def edit_profile():
     pass
+
+# Forgot Password
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        new_password = request.form.get("new_password", "").strip()
+
+        if not email or not new_password:
+            flash("Please provide both email and password.", "danger")
+            return render_template("forgot_password.html")
+        
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            flash("If an account with that email exists, a verficiation code would be sent.", "info")
+            return redirect(url_for("auth.forgot_password"))
+        
+        # Generate code & hash
+        code = generate_code(6)
+        code_hash = hash_code(code)
+        temp_password_hash = generate_password_hash(new_password)
+        expires_at = datetime.utcnow() + timedelta(minutes=15)
+
+        # Save a new password reset record
+        reset_record = PasswordReset(
+            user_id=user.id,
+            code_hash=code_hash,
+            temp_password_hash=temp_password_hash,
+            expires_at=expires_at
+        )
+        db.sessions.add(reset_record)
+        db.sessions.commit()
+
+        # Send email
+        token_link = url_for("auth.reset_verify", _external=True)
+        body = (
+            f"Hi {user.first_name}, <br><br>"
+            f"Your password reset code: <b>{code}</b><br>"
+            f"Expires in 15 minutes.<br>"
+            f"Or visit: <a href='{token_link}'>Reset password</a>"
+            f"Please ignore this email if you have not requested for a change of password.<br>"
+            f"- The MotivateM3 Team."
+        )
+        if not send_email(user.email, "MotivateM3 Password Reset Code", body):
+            flash("Failed to send email. Try again later." "danger")
+            db.session.delete(reset_record)
+            db.session.commit()
+            return render_template("forgot_password.html")
+        
+        session["password_reset_email"] = user.email
+        flash("A verification code has been sent to your email.", "info")
+        return redirect(url_for("auth.reset_verify"))
+    
+    return render_template("forgot_password.html")
+
+@auth_bp.route("/reset/verify", methods=["GET", "POST"])
+def reset_verify():
+    email = session.get("password_reset_email") or request.args.get("email")
+    if not email:
+        flash("Enter the email to reset password.", "danger")
+        return redirect(url_for("auth.forgot_password"))
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash("No account found for that email.", "danger")
+        return redirect(url_for("auth.forgot_password"))
+    
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        if not code:
+            flash("Please enter the verification code.", "danger")
+            return render_template("reset_verify.html", email=email)
+        
+        # Get latest valid reset record
+        reset_record = PasswordReset.query.filter(
+            PasswordReset.user_id == user.id,
+            PasswordReset.expires_at > datetime.utcnow()
+        ).order_by(PasswordReset.created_at.desc()).first()
+
+        if not reset_record:
+            flash("No valid reset request found. Request a new code.", "danger")
+            return redirect(url_for("auth.forgot_password"))
+        
+        if codes_match(reset_record.code_hash, code):
+            # Apply new password
+            user.password = reset_record.temp_password_hash
+            db.session.delete(reset_record)
+            db.session.commit()
+
+            session.pop("password_reset_email", None)
+            flash("Password updated! You can now log in.", "success")
+            return redirect(url_for("auth.login"))
+        else:
+            flash("Invalid verification code.", "danger")
+            return render_template("reset_verify.html", email=email)
+        
+    return render_template("reset_verify.html", email=email)

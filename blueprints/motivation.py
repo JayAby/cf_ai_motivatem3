@@ -193,3 +193,8 @@ def history():
         })
         
     return render_template("history.html", history=formatted_history, name=current_user.first_name)
+
+@motivation_bp.route("/support")
+@login_required
+def support():
+    return render_template("support.html")
