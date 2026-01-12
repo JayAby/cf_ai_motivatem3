@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cf_ai_motivatem3</title>
+    <style>
+      body { font-family: Arial, sans-serif; max-width: 720px; margin: 20px auto; padding: 0 12px; }
+      #chat { border: 1px solid #ddd; border-radius: 10px; padding: 12px; height: 420px; overflow-y: auto; }
+      .msg { margin: 10px 0; }
+      .me { font-weight: 700; }
+      .bot { font-weight: 700; }
+      form { display: flex; gap: 10px; margin-top: 10px; }
+      input { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #ccc; }
+      button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; background: #f6f6f6; cursor: pointer; }
+      small { color: #666; }
+    </style>
+  </head>
+  <body>
+    <h2>MotivateM3</h2>
+    <small>Chat UI for Cloudflare internship assignment</small>
+    <div id="chat"></div>
+
+    <form id="form">
+      <input id="msg" placeholder="Type a message..." autocomplete="off" />
+      <button type="submit">Send</button>
+    </form>
+
+    <script>
+      const chat = document.getElementById("chat");
+      const form = document.getElementById("form");
+      const msg = document.getElementById("msg");
+
+      // simple per-browser user id
+      const key = "m3_userId";
+      let userId = localStorage.getItem(key);
+      if (!userId) {
+        userId = "user_" + Math.random().toString(16).slice(2);
+        localStorage.setItem(key, userId);
+      }
+
+      function addLine(label, text) {
+        const div = document.createElement("div");
+        div.className = "msg";
+        div.innerHTML = `<span class="${label === "You" ? "me" : "bot"}">${label}:</span> ${escapeHtml(text)}`;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      function escapeHtml(str) {
+        return str.replace(/[&<>"']/g, (c) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#039;"
+        }[c]));
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const text = msg.value.trim();
+        if (!text) return;
+        msg.value = "";
+
+        addLine("You", text);
+
+        try {
+          const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, message: text }),
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            addLine("MotivateM3", data.error || "Something went wrong");
+            return;
+          }
+
+          addLine("MotivateM3", data.reply);
+        } catch {
+          addLine("MotivateM3", "Network error. Is the Worker running?");
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,4 @@
+SyntaxError: Unexpected end of JSON input
+    at async Object.fetch (file:///C:/Users/Jo3l/Desktop/Software/cf_ai_motivatem3/worker/src/index.ts:32:18)
+    at async jsonError (file:///C:/Users/Jo3l/AppData/Roaming/npm/node_modules/wrangler/templates/middleware/middleware-miniflare3-json-error.ts:22:10)
+    at async drainBody (file:///C:/Users/Jo3l/AppData/Roaming/npm/node_modules/wrangler/templates/middleware/middleware-ensure-req-body-drained.ts:5:10)

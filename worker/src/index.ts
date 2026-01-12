@@ -2,28 +2,61 @@ import { DurableObject } from "cloudflare:workers";
 
 // MotivateM3 Cloudflare Worker
 // Worker handles HTTP requests
+
+type ChatMsg = { role: "system"| "user" | "assistant"; content: string };
+
+//
+export interface Env{
+	MY_DURABLE_OBJECT: DurableObjectNamespace;
+	AI:Ai;
+}
+
 // Durable object holds per-user state (memory)
-
 export class MotivateSessionDO extends DurableObject<Env> {
-	async sayHello(name: string): Promise<string> {
-		const count = (await this.ctx.storage.get<number>("count")) ?? 0;
-		const newCount = count + 1;
+	private env: Env;
 
-		await this.ctx.storage.put("count", newCount);
+	constructor(ctx: DurableObjectState, env: Env) {
+		super(ctx, env);
+		this.env = env;
+	}
 
-		return `Hello, ${name}. Call count for this user: ${newCount}`;
+	async chat(message: string): Promise<string> {
+		const history = 
+		(await this.ctx.storage.get<ChatMsg[]>("history")) ?? 
+		[
+			{
+				role: "system",
+				content:
+				"Be supportive, concise and practical. Ask one short follow-up question only when needed.",
+			},
+		];
+
+		history.push({role: "user", content: message });
+
+		// Call Workers AI (Llama 3.3)
+		const model = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+
+		const aiResult = await this.env.AI.run(model, {
+			messages: history,
+		});
+
+		const reply =
+			(aiResult as any)?.response ??
+      		(aiResult as any)?.result ??
+      		"Sorry — I couldn’t generate a response right now.";
+
+    	history.push({ role: "assistant", content: String(reply) });
+
+		// Keep last 20 messages
+		const trimmed =
+      		history[0]?.role === "system"
+			? [history[0], ...history.slice(-20)]
+			: history.slice(-20);
+
+    	await this.ctx.storage.put("history", trimmed);
+		return String(reply);
 	}
 }
 
-export default {
-	async fetch(request: Request, env: Env): Promise<Response> {
-		const url = new URL(request.url);
-		const userId = url.searchParams.get("userId") ?? "demo_user";
-
-		// Get the durable object instance for this user
-		const stub = env.MY_DURABLE_OBJECT.getByName(userId);
-
-		const greeting = await stub.sayHello("world");
-		return new Response(greeting);
-	},
-} satisfies ExportedHandler<Env>;
+// Worker (HTTP API)
+const corsHeaders: Record<string, string>={}
